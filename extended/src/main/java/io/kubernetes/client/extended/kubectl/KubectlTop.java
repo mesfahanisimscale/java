@@ -155,23 +155,31 @@ public class KubectlTop<ApiType extends KubernetesObject, MetricsType>
             namespace, null, null, null, null, null, null, null, null, null, null);
     PodMetricsList metrics = new Metrics(apiClient).getPodMetrics(namespace);
     List<V1Pod> items = pods.getItems();
-    Collections.sort(
-        items,
-        new Comparator<V1Pod>() {
-          @Override
-          public int compare(V1Pod arg0, V1Pod arg1) {
-            double m0 =
-                podMetricSum(findPodMetric(arg0.getMetadata().getName(), metrics), metricName);
-            double m1 =
-                podMetricSum(findPodMetric(arg1.getMetadata().getName(), metrics), metricName);
-            return Double.compare(m0, m1) * -1; // sort high to low
-          }
-        });
 
     List<Pair<ApiType, MetricsType>> result = new ArrayList<>();
     for (V1Pod pod : items) {
       result.add(new ImmutablePair<>((ApiType) pod, (MetricsType) findPodMetric(pod, metrics)));
     }
+
+    Collections.sort(
+        result,
+        new Comparator<Pair<ApiType, MetricsType>>() {
+          @Override
+          public int compare(Pair<ApiType, MetricsType> arg0, Pair<ApiType, MetricsType> arg1) {
+            PodMetrics metrics0 = (PodMetrics) arg0.getRight();
+            PodMetrics metrics1 = (PodMetrics) arg1.getRight();
+            if (metrics0 == null) {
+              return -1;
+            }
+            if (metrics1 == null) {
+              return 1;
+            }
+            double m0 = podMetricSum(metrics0, metricName);
+            double m1 = podMetricSum(metrics1, metricName);
+            return Double.compare(m0, m1) * -1; // sort high to low
+          }
+        });
+
     return result;
   }
 }
